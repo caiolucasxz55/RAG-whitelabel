@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Ambientes
+.venv/
+venv/
+.env
+!.env.example
+
+# Ferramentas
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Config local (o template versionado é kit.example.yaml)
+kit.yaml
+
+# Saídas de eval
+evals/results/
+
+# Editores / SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
