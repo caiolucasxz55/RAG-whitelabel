@@ -11,11 +11,13 @@ from typing import Any
 from kit import registry
 from kit.chunking import Chunker
 from kit.config import KitConfig, load_config
+from kit.extract import Extractor
 from kit.ingestion import IngestionService, LoaderSet
 from kit.interfaces import LLM, Embedder, Loader, VectorStore
 from kit.observability import timed
 from kit.rag import RAGService
-from kit.types import IngestReport, QueryResult, ScoredChunk
+from kit.schemas import SchemaRegistry
+from kit.types import ExtractionResult, IngestReport, QueryResult, ScoredChunk, T
 
 logger = logging.getLogger("kit")
 
@@ -67,6 +69,14 @@ class Kit:
         self._rag = RAGService(
             embedder, store, llm, top_k=config.retrieval.top_k, pricing=config.llm.pricing
         )
+        self._extractor = Extractor(
+            self._loader_set,
+            llm,
+            max_retries=config.extraction.max_retries,
+            max_chars=config.extraction.max_chars,
+            pricing=config.llm.pricing,
+        )
+        self.schemas = SchemaRegistry(config.schemas, config.base_dir)
 
     @classmethod
     def from_config(cls, path: str | os.PathLike[str] | None = None, **overrides: Any) -> Kit:
@@ -98,4 +108,36 @@ class Kit:
                 input_tokens=result.usage.input_tokens,
                 output_tokens=result.usage.output_tokens,
             )
+        return result
+
+    def extract(
+        self,
+        path: str | Path,
+        schema: type[T],
+        *,
+        instructions: str | None = None,
+        max_retries: int | None = None,
+    ) -> ExtractionResult[T]:
+        """Extrai um objeto `schema` (modelo Pydantic) do arquivo, com validação e retry."""
+        with timed(logger, "extract", schema=schema.__name__, file=Path(path).name) as log:
+            result = self._extractor.extract(
+                path, schema, instructions=instructions, max_retries=max_retries
+            )
+            log.update(confidence=result.confidence, attempts=result.attempts)
+        return result
+
+    def extract_text(
+        self,
+        text: str,
+        schema: type[T],
+        *,
+        instructions: str | None = None,
+        max_retries: int | None = None,
+    ) -> ExtractionResult[T]:
+        """Igual a extract(), partindo de texto já carregado."""
+        with timed(logger, "extract", schema=schema.__name__) as log:
+            result = self._extractor.extract_text(
+                text, schema, instructions=instructions, max_retries=max_retries
+            )
+            log.update(confidence=result.confidence, attempts=result.attempts)
         return result

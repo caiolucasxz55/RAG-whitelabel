@@ -1,0 +1,28 @@
+{"question": "Qual o valor total da nota fiscal número 78801?", "source": "nf_002.pdf", "contains": "14.237,86"}
+{"question": "Qual o valor total da nota fiscal número 87675?", "source": "nf_004.pdf", "contains": "5.507,67"}
+{"question": "Qual o valor total da nota fiscal número 29201?", "source": "nf_006.pdf", "contains": "5.860,96"}
+{"question": "Qual o valor total da nota fiscal número 31633?", "source": "nf_008.pdf", "contains": "7.210,40"}
+{"question": "Qual o valor total da nota fiscal número 39310?", "source": "nf_010.pdf", "contains": "4.669,98"}
+{"question": "Qual o valor total da nota fiscal número 25669?", "source": "nf_012.pdf", "contains": "15.177,81"}
+{"question": "Qual o valor total da nota fiscal número 76040?", "source": "nf_014.pdf", "contains": "1.315,99"}
+{"question": "Qual o valor total da nota fiscal número 86516?", "source": "nf_016.pdf", "contains": "33.992,45"}
+{"question": "Qual o valor total da nota fiscal número 76394?", "source": "nf_018.pdf", "contains": "2.572,50"}
+{"question": "Qual o valor total da nota fiscal número 58842?", "source": "nf_020.pdf", "contains": "494,78"}
+{"question": "Qual o valor total da nota fiscal número 54597?", "source": "nf_022.pdf", "contains": "70,68"}
+{"question": "Qual o valor total da nota fiscal número 2334?", "source": "nf_024.pdf", "contains": "20.736,48"}
+{"question": "Qual o prazo de aviso prévio para rescindir o contrato de manutenção preventiva de equipamentos de informática com a Pinheiral Alimentos S.A.?", "source": "contrato_01.md", "contains": "90 dias"}
+{"question": "Qual o foro eleito no contrato de manutenção preventiva de equipamentos de informática?", "source": "contrato_01.md", "contains": "comarca de Belo Horizonte"}
+{"question": "Qual o prazo de aviso prévio para rescindir o contrato de limpeza e conservação predial com a Estrela Azul Alimentos S.A.?", "source": "contrato_02.md", "contains": "90 dias"}
+{"question": "Qual o foro eleito no contrato de limpeza e conservação predial?", "source": "contrato_02.md", "contains": "comarca de Curitiba"}
+{"question": "Qual o prazo de aviso prévio para rescindir o contrato de consultoria contábil e fiscal com a Farol Logística S.A.?", "source": "contrato_03.pdf", "contains": "60 dias"}
+{"question": "Qual o foro eleito no contrato de consultoria contábil e fiscal?", "source": "contrato_03.pdf", "contains": "comarca de Recife"}
+{"question": "Qual o prazo de aviso prévio para rescindir o contrato de desenvolvimento e sustentação de software com a Marítima Alimentos S.A.?", "source": "contrato_04.md", "contains": "15 dias"}
+{"question": "Qual o foro eleito no contrato de desenvolvimento e sustentação de software?", "source": "contrato_04.md", "contains": "comarca de Curitiba"}
+{"question": "Qual o prazo de aviso prévio para rescindir o contrato de transporte de cargas fracionadas com a Boreal Alimentos S.A.?", "source": "contrato_05.md", "contains": "45 dias"}
+{"question": "Qual o foro eleito no contrato de transporte de cargas fracionadas?", "source": "contrato_05.md", "contains": "comarca de Belo Horizonte"}
+{"question": "Qual o prazo de aviso prévio para rescindir o contrato de vigilância patrimonial desarmada com a Jatobá Ferragens Eireli?", "source": "contrato_06.pdf", "contains": "60 dias"}
+{"question": "Qual o foro eleito no contrato de vigilância patrimonial desarmada?", "source": "contrato_06.pdf", "contains": "comarca de Belo Horizonte"}
+{"question": "Qual o prazo de aviso prévio para rescindir o contrato de fornecimento de refeições corporativas com a Jatobá Comércio de Papéis Ltda?", "source": "contrato_07.md", "contains": "45 dias"}
+{"question": "Qual o foro eleito no contrato de fornecimento de refeições corporativas?", "source": "contrato_07.md", "contains": "comarca de Salvador"}
+{"question": "Qual o prazo de aviso prévio para rescindir o contrato de suporte técnico em telefonia com a Horizonte Têxtil S.A.?", "source": "contrato_08.md", "contains": "45 dias"}
+{"question": "Qual o foro eleito no contrato de suporte técnico em telefonia?", "source": "contrato_08.md", "contains": "comarca de Salvador"}
