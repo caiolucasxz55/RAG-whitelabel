@@ -25,6 +25,7 @@ _BUILTINS: dict[Kind, dict[str, str]] = {
         "text": "kit.adapters.loaders.text:TextLoader",
     },
     "embedder": {
+        "onnx": "kit.adapters.embedders.onnx:OnnxEmbedder",
         "local": "kit.adapters.embedders.local:SentenceTransformerEmbedder",
         "hashing": "kit.adapters.embedders.hashing:HashingEmbedder",
     },

@@ -5,8 +5,10 @@
 loader: [pdf, text]
 
 embedder:
-  provider: local                       # sentence-transformers, roda sem chave de API
+  provider: onnx                        # ONNX Runtime em CPU: sem torch e sem chave de API
   model: ${EMBEDDING_MODEL:-intfloat/multilingual-e5-small}
+  file: onnx/model_qint8_avx512_vnni.onnx   # int8, ~118 MB (onnx/model.onnx = fp32, 470 MB)
+  # Alternativa com torch (pip install 'kit-rag[local]'): provider: local
 
 store:
   provider: pgvector

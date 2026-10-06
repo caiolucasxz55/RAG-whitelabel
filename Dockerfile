@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ---------- build: venv com dependências e modelo de embeddings ----------
+# Sem torch: embeddings via ONNX Runtime + modelo quantizado int8 (extra `server`).
 FROM python:3.11-slim AS build
 
 ENV PIP_NO_CACHE_DIR=1 \
@@ -10,22 +11,23 @@ ENV PIP_NO_CACHE_DIR=1 \
 RUN python -m venv /opt/venv
 ENV PATH=/opt/venv/bin:$PATH
 
-# Torch só CPU: a imagem fica ~2 GB menor que com CUDA.
-RUN pip install torch --index-url https://download.pytorch.org/whl/cpu
-
 WORKDIR /src
 # Instala as dependências antes do código para aproveitar o cache de camadas.
 COPY pyproject.toml README.md ./
 RUN mkdir -p src/kit && touch src/kit/__init__.py \
-    && pip install ".[all]" \
+    && pip install ".[server]" \
     && pip uninstall -y kit-rag
 
 COPY src ./src
-RUN pip install --no-deps .
+RUN pip install --no-deps . && pip uninstall -y pip
 
-# Baixa o modelo no build: o container sobe offline e sem espera.
+# Baixa no build só o ONNX quantizado + tokenizer (~135 MB): o container sobe offline e
+# sem espera. Para outro modelo, ajuste estes ARGs e o kit.yaml juntos.
 ARG EMBEDDING_MODEL=intfloat/multilingual-e5-small
-RUN python -c "from sentence_transformers import SentenceTransformer as S; S('${EMBEDDING_MODEL}')"
+ARG EMBEDDING_FILE=onnx/model_qint8_avx512_vnni.onnx
+ARG EMBEDDING_TOKENIZER=onnx/tokenizer.json
+RUN python -c "from huggingface_hub import hf_hub_download as get; \
+[get('${EMBEDDING_MODEL}', f) for f in ('${EMBEDDING_FILE}', '${EMBEDDING_TOKENIZER}')]"
 
 # ---------- runtime ----------
 FROM python:3.11-slim AS runtime

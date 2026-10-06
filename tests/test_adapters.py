@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import importlib.util
 from types import SimpleNamespace
 from typing import Any
 
@@ -125,12 +124,8 @@ def test_anthropic_refusal_and_truncation_raise() -> None:
 # ---------- embedder local (só roda com o extra [local] instalado) ----------
 
 
-@pytest.mark.skipif(
-    importlib.util.find_spec("sentence_transformers") is None,
-    reason="sentence-transformers não instalado",
-)
-def test_local_embedder_prefixes_for_e5() -> None:
-    from kit.adapters.embedders.local import _default_prefixes
+def test_prefixes_for_e5() -> None:
+    from kit.adapters.embedders.prefixes import default_prefixes as _default_prefixes
 
     assert _default_prefixes("intfloat/multilingual-e5-small") == ("query: ", "passage: ")
     assert _default_prefixes("outro/modelo") == ("", "")
@@ -144,3 +139,78 @@ def test_auto_llm_picks_by_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
     assert isinstance(auto_llm(model="claude-opus-5-5", effort="medium"), ExtractiveLLM)
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
     assert isinstance(auto_llm(model="claude-opus-5-5", effort="medium"), AnthropicLLM)
+
+
+# ---------- embedder ONNX (sessão e tokenizer falsos, sem download) ----------
+
+
+class _Encoding:
+    def __init__(self, n_tokens: int, width: int) -> None:
+        self.ids = [7] * n_tokens + [0] * (width - n_tokens)
+        self.attention_mask = [1] * n_tokens + [0] * (width - n_tokens)
+
+
+class _FakeTokenizer:
+    def __init__(self) -> None:
+        self.batches: list[list[str]] = []
+
+    def enable_truncation(self, max_length: int) -> None: ...
+
+    def enable_padding(self) -> None: ...
+
+    def encode_batch(self, texts: list[str]) -> list[_Encoding]:
+        self.batches.append(list(texts))
+        width = max(len(t.split()) for t in texts)
+        return [_Encoding(len(t.split()), width) for t in texts]
+
+
+class _FakeSession:
+    """Hidden state = [n_tokens_do_texto, 1, 0] em cada posição real; padding vale 100."""
+
+    def __init__(self, with_token_types: bool) -> None:
+        names = ["input_ids", "attention_mask"] + (["token_type_ids"] if with_token_types else [])
+        self._inputs = [SimpleNamespace(name=n) for n in names]
+        self.feeds: list[dict[str, Any]] = []
+
+    def get_inputs(self) -> list[Any]:
+        return self._inputs
+
+    def run(self, _: Any, feeds: dict[str, Any]) -> list[Any]:
+        import numpy as np
+
+        self.feeds.append(feeds)
+        mask = feeds["attention_mask"]
+        n = mask.sum(axis=1, keepdims=True).astype(float)
+        hidden = np.stack(
+            [np.broadcast_to(n, mask.shape), np.ones(mask.shape), np.zeros(mask.shape)], -1
+        )
+        hidden[mask == 0] = 100.0  # se o padding entrar na média, o teste falha
+        return [hidden]
+
+
+def test_onnx_embedder_pools_ignoring_padding_and_uses_prefixes() -> None:
+    from kit.adapters.embedders.onnx import OnnxEmbedder
+
+    tok, session = _FakeTokenizer(), _FakeSession(with_token_types=True)
+    emb = OnnxEmbedder(session=session, tokenizer=tok, batch_size=2, normalize=False)
+    assert emb.dimension == 3
+    vectors = emb.embed_documents(["a b c", "a", "a b"])
+    # prefixo e5 ("passage: ") soma um token a cada texto
+    assert [round(v[0]) for v in vectors] == [4, 2, 3]
+    assert all(v[1] == 1.0 for v in vectors)
+    assert tok.batches[1] == ["passage: a b c", "passage: a"]  # batch_size=2
+    assert "token_type_ids" in session.feeds[-1]
+    assert emb.embed_query("x y")[0] == 3.0  # "query: x y"
+    assert isinstance(emb, Embedder)
+
+
+def test_onnx_embedder_normalizes_and_skips_token_types_when_absent() -> None:
+    import math
+
+    from kit.adapters.embedders.onnx import OnnxEmbedder
+
+    session = _FakeSession(with_token_types=False)
+    emb = OnnxEmbedder(session=session, tokenizer=_FakeTokenizer(), query_prefix="")
+    vector = emb.embed_query("um dois")
+    assert math.isclose(sum(x * x for x in vector), 1.0)
+    assert "token_type_ids" not in session.feeds[-1]

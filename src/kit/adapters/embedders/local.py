@@ -1,22 +1,15 @@
-"""Embeddings locais com sentence-transformers (extra `kit-rag[local]`). Sem chave de API."""
+"""Embeddings locais com sentence-transformers + torch (extra `kit-rag[local]`).
+
+Mais flexível (qualquer modelo do Hub), porém pesado: o torch sozinho ocupa ~800 MB.
+Para imagens enxutas, prefira o adapter `onnx`.
+"""
 
 from __future__ import annotations
 
 from collections.abc import Sequence
 from typing import Any
 
-# Modelos que foram treinados com prefixos distintos para consulta e passagem.
-_KNOWN_PREFIXES: dict[str, tuple[str, str]] = {
-    "e5": ("query: ", "passage: "),
-}
-
-
-def _default_prefixes(model: str) -> tuple[str, str]:
-    name = model.lower()
-    for key, prefixes in _KNOWN_PREFIXES.items():
-        if key in name:
-            return prefixes
-    return "", ""
+from kit.adapters.embedders.prefixes import default_prefixes
 
 
 class SentenceTransformerEmbedder:
@@ -34,7 +27,7 @@ class SentenceTransformerEmbedder:
 
         self.model_name = model
         self._model: Any = SentenceTransformer(model, device=device)
-        default_query, default_passage = _default_prefixes(model)
+        default_query, default_passage = default_prefixes(model)
         self.query_prefix = default_query if query_prefix is None else query_prefix
         self.passage_prefix = default_passage if passage_prefix is None else passage_prefix
         self.batch_size = batch_size

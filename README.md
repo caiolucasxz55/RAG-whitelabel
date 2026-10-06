@@ -71,7 +71,7 @@ print(nota.issues)  # por que a confiança é baixa, se for
 
 Cada `Source` traz `source` (arquivo), `page` (PDF), `text` (trecho), `score` e `ref` (o `[n]` citado na resposta). `ExtractionResult` traz `data`, `confidence`, `issues`, `attempts` e `usage` (tokens e custo).
 
-Extras: `anthropic`, `local` (sentence-transformers), `pgvector`, `api`, `cli`, `all`.
+Extras: `anthropic`, `onnx` (embeddings em ONNX Runtime), `local` (sentence-transformers + torch), `pgvector`, `api`, `cli`, `server` (tudo menos torch, o que a imagem Docker usa) e `all`.
 
 ### CLI
 
@@ -88,8 +88,9 @@ kit serve --host 0.0.0.0
 ```yaml
 loader: [pdf, text]
 embedder:
-  provider: local                         # sentence-transformers, sem chave
+  provider: onnx                          # ONNX Runtime em CPU, sem torch e sem chave
   model: intfloat/multilingual-e5-small
+  file: onnx/model_qint8_avx512_vnni.onnx # int8; onnx/model.onnx = fp32
 store:
   provider: pgvector
   dsn: ${DATABASE_URL}
@@ -105,7 +106,7 @@ schemas:
 | Interface   | Embutidos                              | Para testes / offline     |
 |-------------|----------------------------------------|---------------------------|
 | Loader      | `pdf` (pypdf, uma página por documento), `text` (.txt/.md) | — |
-| Embedder    | `local` (sentence-transformers)         | `hashing` (léxico, sem download) |
+| Embedder    | `onnx` (ONNX Runtime), `local` (sentence-transformers + torch) | `hashing` (léxico, sem download) |
 | VectorStore | `pgvector` (HNSW, cosseno)              | `memory`                  |
 | LLM         | `anthropic` (structured outputs, fallback do servidor) | `extractive`, `auto` |
 
@@ -122,16 +123,16 @@ ou registre em código: `kit.registry.register("store", "qdrant", QdrantStore)`.
 ## Resultados
 
 <!-- RESULTS:START -->
-Medido com `kit eval` sobre o corpus sintético de `examples/` (8 contratos + 25 notas fiscais, 33 arquivos, PDF e Markdown), embedder `intfloat/multilingual-e5-small` em CPU, dentro do container (`docker compose exec api kit eval --compare-headers --chunk-sizes 500,800`). Os datasets rotulados estão em `evals/datasets/`.
+Medido com `kit eval` sobre o corpus sintético de `examples/` (8 contratos + 25 notas fiscais, 33 arquivos, PDF e Markdown), embedder `intfloat/multilingual-e5-small` quantizado em int8 via ONNX Runtime em CPU, dentro do container (`docker compose exec api kit eval --compare-headers --chunk-sizes 500,800`). Os datasets rotulados estão em `evals/datasets/`.
 
 **RAG: hit rate@5** (o trecho que contém a resposta aparece entre os 5 primeiros resultados), 28 perguntas:
 
 | Configuração | Hit rate@5 | MRR | Latência da busca p50 | p95 |
 |---|---|---|---|---|
-| chunk 500, sem header contextual | 25,0% | 0,129 | 0,013 s | 0,016 s |
-| chunk 500, com header contextual | 67,9% | 0,536 | 0,013 s | 0,017 s |
-| chunk 800, sem header contextual | 60,7% | 0,280 | 0,014 s | 0,017 s |
-| **chunk 800, com header contextual (padrão)** | **82,1%** | **0,661** | **0,013 s** | **0,021 s** |
+| chunk 500, sem header contextual | 25,0% | 0,114 | 0,007 s | 0,011 s |
+| chunk 500, com header contextual | 71,4% | 0,518 | 0,005 s | 0,009 s |
+| chunk 800, sem header contextual | 60,7% | 0,290 | 0,005 s | 0,013 s |
+| **chunk 800, com header contextual (padrão)** | **82,1%** | **0,674** | **0,005 s** | **0,007 s** |
 
 O que os números mostram:
 
@@ -155,6 +156,18 @@ A saída traz acurácia por campo, % de documentos 100% corretos, % com confian�
 **pgvector como store padrão.** A maioria dos projetos já tem Postgres; um vector store dentro dele significa backup, transação e operação que o time já domina, sem mais um serviço. Com índice HNSW o desempenho cobre folgadamente o volume típico de um projeto (milhares a poucos milhões de chunks). Quando passar disso, um store dedicado entra como adapter.
 
 **Embeddings locais.** `multilingual-e5-small` roda em CPU, entende português, não tem custo por chamada e não envia documentos para terceiros na ingestão, que é a etapa de maior volume. O modelo é baixado no build da imagem, então o container sobe offline. O preço é qualidade menor que modelos de API maiores; trocar é uma linha no `kit.yaml`.
+
+**ONNX int8 em vez de torch.** Para *inferência* de embeddings o torch é peso morto: sozinho ocupava 773 MB da imagem, e o sentence-transformers trazia mais ~400 MB (transformers, scipy, sympy, sklearn). O adapter `onnx` usa ONNX Runtime + `tokenizers` e o export int8 que o próprio repositório do modelo publica no Hugging Face. Medido:
+
+| | sentence-transformers fp32 | ONNX int8 |
+|---|---|---|
+| Imagem Docker | 2,91 GB | **810 MB** |
+| Modelo | 471 MB | 118 MB |
+| Cosseno vs. fp32 (5 textos) | 1,000 | 0,996 a 0,997 |
+| Hit rate@5 (chunk 800 + header) | 82,1% | 82,1% |
+| Latência da busca p50 | 0,013 s | 0,005 s |
+
+O export fp32 em ONNX reproduz os vetores do sentence-transformers com cosseno 1,000, o que valida tokenização e pooling. O adapter `local` (torch) continua disponível para modelos sem export ONNX.
 
 **Chunk por caracteres.** Independe do tokenizer do embedder, então o mesmo `kit.yaml` vale para qualquer modelo. O corte procura parágrafo, linha, fim de frase ou espaço na segunda metade da janela, para não partir palavras.
 
