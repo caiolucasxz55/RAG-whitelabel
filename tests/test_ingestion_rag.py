@@ -91,7 +91,7 @@ def test_query_returns_cited_sources_and_cost(kit: Kit, docs: Path, fake_llm: Fa
     assert result.answer.startswith("O aviso prévio")
     assert [s.ref for s in result.sources] == [1]  # [9] está fora do contexto: ignorado
     assert result.sources[0].source == "contrato.md"
-    assert "Rescisão" in result.sources[0].text
+    assert "30 dias" in result.sources[0].text
     call = fake_llm.calls[0]
     assert call.system and "cite" in call.system
     # pricing do conftest: 100 tokens in * $4/M + 10 out * $20/M
@@ -118,3 +118,37 @@ def test_format_context_escapes_source() -> None:
 
     ctx = format_context("q?", [ScoredChunk(Chunk("id", "texto", 'a"b.md', 0, {"page": 3}), 0.9)])
     assert 'source="a&quot;b.md" page="3"' in ctx
+
+
+def test_contextual_header_uses_source_and_first_line() -> None:
+    from kit.ingestion import document_header
+    from kit.types import Document
+
+    docs = [Document("\n\n# Contrato de limpeza\n\nCláusula 1", "c.md")]
+    assert document_header("c.md", docs) == "c.md | Contrato de limpeza"
+    assert document_header("vazio.md", [Document("  ", "vazio.md")]) == "vazio.md"
+
+
+def test_contextual_header_improves_retrieval_of_templated_docs(
+    config: KitConfig, fake_llm: FakeLLM, tmp_path: Path
+) -> None:
+    """Documentos de mesmo modelo: só o título diferencia o trecho da cláusula."""
+    root = tmp_path / "c"
+    root.mkdir()
+    filler = "Texto padrão da cláusula de vigência e renovação do contrato. " * 4
+    for slug, servico, dias in [("a", "jardinagem", 15), ("b", "vigilância", 90)]:
+        (root / f"{slug}.md").write_text(
+            f"# Contrato de {servico}\n\n{filler}\n\nRescisão com aviso prévio de {dias} dias.",
+            encoding="utf-8",
+        )
+    question = "aviso prévio de rescisão do contrato de vigilância"
+
+    def top_source(headers: bool) -> str:
+        chunking = config.chunking.model_copy(update={"contextual_headers": headers})
+        cfg = config.model_copy(update={"chunking": chunking})
+        kit = Kit.from_settings(cfg, llm=fake_llm)
+        kit.ingest(root)
+        hits = [h for h in kit.retrieve(question, top_k=5) if "aviso prévio" in h.chunk.text]
+        return hits[0].chunk.source
+
+    assert top_source(headers=True) == "b.md"

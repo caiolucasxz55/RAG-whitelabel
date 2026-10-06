@@ -134,3 +134,13 @@ def test_local_embedder_prefixes_for_e5() -> None:
 
     assert _default_prefixes("intfloat/multilingual-e5-small") == ("query: ", "passage: ")
     assert _default_prefixes("outro/modelo") == ("", "")
+
+
+def test_auto_llm_picks_by_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
+    from kit.adapters.llms.auto import auto_llm
+
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("ANTHROPIC_AUTH_TOKEN", raising=False)
+    assert isinstance(auto_llm(model="claude-opus-5-5", effort="medium"), ExtractiveLLM)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
+    assert isinstance(auto_llm(model="claude-opus-5-5", effort="medium"), AnthropicLLM)

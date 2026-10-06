@@ -42,6 +42,21 @@ class LoaderSet:
         return documents
 
 
+def document_header(source: str, documents: Sequence[Document], max_chars: int = 200) -> str:
+    """Cabeçalho contextual de um arquivo: nome + primeira linha de texto (título, em geral).
+
+    Trechos do meio de um documento costumam não repetir de que documento são ("Cláusula 4 -
+    Rescisão..."). Prefixar o cabeçalho no texto embedado devolve esse contexto à busca.
+    """
+    title = ""
+    for doc in documents:
+        line = next((ln.strip(" #*\t") for ln in doc.text.splitlines() if ln.strip()), "")
+        if line:
+            title = line[:max_chars]
+            break
+    return f"{source} | {title}" if title else source
+
+
 def _walk(target: Path) -> list[tuple[Path, str]]:
     """Expande diretórios recursivamente. O `source` de cada arquivo é o caminho relativo
     à raiz informada, o que evita colisão entre arquivos homônimos em pastas diferentes."""
@@ -65,12 +80,14 @@ class IngestionService:
         store: VectorStore,
         *,
         batch_size: int = 64,
+        contextual_headers: bool = True,
     ) -> None:
         self.loaders = loaders
         self.chunker = chunker
         self.embedder = embedder
         self.store = store
         self.batch_size = batch_size
+        self.contextual_headers = contextual_headers
 
     def ingest(self, paths: PathLike | Iterable[PathLike]) -> IngestReport:
         targets = [paths] if isinstance(paths, str | Path) else list(paths)
@@ -94,10 +111,13 @@ class IngestionService:
         documents = self.loaders.load(path, source=source)
         chunks = self.chunker.chunk_documents(documents)
         source_id = source or path.name
+        header = document_header(source_id, documents) if self.contextual_headers else ""
         self.store.delete_source(source_id)
         for i in range(0, len(chunks), self.batch_size):
             batch = chunks[i : i + self.batch_size]
-            self.store.add(batch, self.embedder.embed_documents([c.text for c in batch]))
+            # O embedding vê "arquivo | título" + trecho; o texto guardado e citado é só o trecho.
+            texts = [f"{header}\n\n{c.text}" if header else c.text for c in batch]
+            self.store.add(batch, self.embedder.embed_documents(texts))
         logger.info(
             "arquivo ingerido",
             extra={"source": source_id, "documents": len(documents), "chunks": len(chunks)},

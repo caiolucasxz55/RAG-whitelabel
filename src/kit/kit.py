@@ -65,6 +65,7 @@ class Kit:
             Chunker(config.chunking.size, config.chunking.overlap),
             embedder,
             store,
+            contextual_headers=config.chunking.contextual_headers,
         )
         self._rag = RAGService(
             embedder, store, llm, top_k=config.retrieval.top_k, pricing=config.llm.pricing

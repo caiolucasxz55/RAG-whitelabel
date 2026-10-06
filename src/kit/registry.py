@@ -35,6 +35,7 @@ _BUILTINS: dict[Kind, dict[str, str]] = {
     "llm": {
         "anthropic": "kit.adapters.llms.anthropic:AnthropicLLM",
         "extractive": "kit.adapters.llms.extractive:ExtractiveLLM",
+        "auto": "kit.adapters.llms.auto:auto_llm",
     },
 }
 

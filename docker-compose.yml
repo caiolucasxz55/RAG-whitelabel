@@ -1,0 +1,36 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: kit
+      POSTGRES_PASSWORD: kit
+      POSTGRES_DB: kit
+    ports:
+      - "${DB_PORT:-5433}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kit -d kit"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    image: kit-rag:latest
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql://kit:kit@db:5432/kit
+      LLM_PROVIDER: ${LLM_PROVIDER:-auto}
+      KIT_LOG_LEVEL: ${KIT_LOG_LEVEL:-INFO}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:

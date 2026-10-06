@@ -1,0 +1,39 @@
+# Configuração do kit. Copie para kit.yaml (ou aponte KIT_CONFIG) e ajuste.
+# Valores ${VAR} vêm do ambiente/.env; ${VAR:-padrao} usa o padrão se VAR estiver vazia.
+# Trocar de provedor = mudar `provider` (nome embutido ou 'pacote.modulo:Classe').
+
+loader: [pdf, text]
+
+embedder:
+  provider: local                       # sentence-transformers, roda sem chave de API
+  model: ${EMBEDDING_MODEL:-intfloat/multilingual-e5-small}
+
+store:
+  provider: pgvector
+  dsn: ${DATABASE_URL:-postgresql://kit:kit@localhost:5433/kit}
+  table: ${KIT_TABLE:-kit_chunks}
+
+llm:
+  provider: ${LLM_PROVIDER:-auto}       # auto = anthropic se houver ANTHROPIC_API_KEY, senão extractive
+  model: ${LLM_MODEL:-claude-opus-5-5}
+  effort: ${LLM_EFFORT:-medium}
+  fallbacks: default                    # refaz a chamada em outro modelo se houver recusa por política
+  pricing:                              # US$ por milhão de tokens, usado no custo dos evals
+    input_per_mtok: 4.0
+    output_per_mtok: 20.0
+
+chunking:
+  size: 800       # caracteres
+  overlap: 100
+
+retrieval:
+  top_k: 5
+
+extraction:
+  max_retries: 1
+  max_chars: 200000
+
+# Schemas expostos por nome na API (/extract) e na CLI (--schema).
+schemas:
+  nota_fiscal: examples.schemas:NotaFiscal
+  contrato: examples.schemas:Contrato

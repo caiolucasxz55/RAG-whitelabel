@@ -53,6 +53,10 @@ class LLMConfig(ProviderConfig):
 class ChunkingConfig(BaseModel):
     size: int = Field(default=800, gt=0, description="Tamanho máximo do trecho, em caracteres.")
     overlap: int = Field(default=100, ge=0)
+    contextual_headers: bool = Field(
+        default=True,
+        description="Prefixa 'arquivo | título' ao texto embedado de cada chunk.",
+    )
 
     @model_validator(mode="after")
     def _overlap_smaller_than_size(self) -> ChunkingConfig:

@@ -79,3 +79,14 @@ def test_load_config_from_yaml(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
 def test_missing_file_has_helpful_message(tmp_path: Path) -> None:
     with pytest.raises(ConfigError, match=r"kit\.example\.yaml"):
         load_config(tmp_path / "nao_existe.yaml", dotenv=False)
+
+
+def test_example_config_is_valid(monkeypatch: pytest.MonkeyPatch) -> None:
+    for var in ("DATABASE_URL", "LLM_PROVIDER", "LLM_MODEL", "LLM_EFFORT", "EMBEDDING_MODEL"):
+        monkeypatch.delenv(var, raising=False)
+    root = Path(__file__).resolve().parent.parent
+    cfg = load_config(root / "kit.example.yaml", dotenv=False)
+    assert cfg.llm.provider == "auto"
+    assert cfg.llm.options["model"] == "claude-opus-5-5"
+    assert cfg.store.options["dsn"].startswith("postgresql://")
+    assert set(cfg.schemas) == {"nota_fiscal", "contrato"}

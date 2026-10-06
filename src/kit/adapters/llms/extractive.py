@@ -77,7 +77,9 @@ def _terms(text: str) -> set[str]:
 
 
 class ExtractiveLLM:
-    def __init__(self, max_sentences: int = 2) -> None:
+    def __init__(self, max_sentences: int = 2, **_generative_options: Any) -> None:
+        # Ignora opções de LLMs gerativos (model, effort...) para que trocar só o
+        # `provider` no kit.yaml/.env funcione sem editar o resto da seção.
         self.max_sentences = max_sentences
         self.model = "extractive"
 
