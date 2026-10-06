@@ -20,7 +20,7 @@ dependencies = [
 [project.optional-dependencies]
 anthropic = ["anthropic>=1.0"]
 local = ["sentence-transformers>=3.0"]
-pgvector = ["psycopg[binary]>=3.1", "pgvector>=0.3", "numpy>=1.26"]
+pgvector = ["psycopg[binary,pool]>=3.1", "pgvector>=0.3", "numpy>=1.26"]
 api = ["fastapi>=0.110", "uvicorn[standard]>=0.29", "python-multipart>=0.0.9"]
 cli = ["typer>=0.12"]
 all = ["kit-rag[anthropic,local,pgvector,api,cli]"]
